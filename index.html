@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map and Table</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+        .info-div {
+            border: 1px solid #ddd;
+            padding: 15px;
+            background-color: #f8f9fa;
+        }
+        .map-container {
+            position: relative;
+            z-index: 1;
+        }
+        .table-hover tbody tr:hover {
+            background-color: #e6f3ff; /* Light blue background on hover */
+            cursor: pointer; /* Change cursor to pointer */
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid py-3">
+    <!-- Map Row -->
+    <div class="row mb-2">
+        <div class="col-12 map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <br>
+    <hr>
+    <br>
+
+    <!-- Flight Duration Row -->
+    <div class="row mb-4" id="flightTimeDiv" style = 'text-align: center'>
+        <div class="col">
+            <p id="flightTimeOutput"></p>
+        </div>
+    </div>
+
+    <!-- Table and Info Row -->
+    <div class="row">
+
+        <!-- Info Div -->
+        <div class="col-lg-4 col-md-12 mb-5">
+            <div id="infoDiv" class="info-div" style="background-color: rgb(217, 217, 217);">
+                <h5>Flight Details</h5>
+                <p>Select a marker or table row to view details here.</p>
+            </div>
+        </div>
+        <!-- Table -->
+        <div class="col-lg-8 col-md-12 mb-3">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Departing City</th>
+                            <th>Arrival City</th>
+                            <th>Flight</th>
+                            <th>Confirmation Code</th>
+                            <th>Departing</th>
+                            <th>Arriving</th>
+                        </tr>
+                    </thead>
+                    <tbody id="flightTable">
+                        <!-- Dynamic Rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.33/moment-timezone-with-data.min.js"></script>
+<script>
+    // Initialize map
+    const map = L.map('map').setView([13.6062, 100.3321], 2);
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+    }).addTo(map);
+
+    // Flight data
+    const flightData = [
+        { departing: 'Seattle', arriving: 'Taipei', flightNo: 'Delta DL0069', code: 'JQWREQ', departTime: '3:41 PM', departDate: '1/30/25', arriveTime: '9:05 PM', arriveDate: '1/31/25', coords: [47.6062, -122.3321] },
+        { departing: 'Taipei', arriving: 'Hong Kong', flightNo: 'Cathay Pacific CX407', code: '6NBUFY', departTime: '8:20 AM', departDate: '2/3/25', arriveTime: '10:30 AM', arriveDate: '2/3/25', coords: [25.033, 121.5654] },
+        { departing: 'Hong Kong', arriving: 'Kuala Lumpur', flightNo: 'Cathay Pacific CX725', code: '6NBUFY', departTime: '12:45 PM', departDate: '2/5/25', arriveTime: '4:50 PM', arriveDate: '2/5/25', coords: [22.3193, 114.1694] },
+        { departing: 'Kuala Lumpur', arriving: 'Phuket', flightNo: 'Air Asia AK 820', code: 'K9KBRZ', departTime: '7:35 PM', departDate: '2/8/25', arriveTime: '8:10 PM', arriveDate: '2/8/25', coords: [3.139, 101.6869] },
+        { departing: 'Phuket', arriving: 'Bangkok', flightNo: 'Thai Vietjet VZ301', code: '3JY3VP', departTime: '10:20 AM', departDate: '2/12/25', arriveTime: '11:50 AM', arriveDate: '2/12/25', coords: [7.8804, 98.3923] },
+        { departing: 'Bangkok', arriving: 'Udon Thani', flightNo: 'Thai Vietjet VZ204', code: 'X8XS8U', departTime: '1:15 PM', departDate: '2/14/25', arriveTime: '2:25 PM', arriveDate: '2/14/25', coords: [13.7563, 100.5018] },
+        { departing: 'Udon Thani', arriving: 'Bangkok', flightNo: 'Thai Airways TG3', code: '57DOCB', departTime: '8:30 AM', departDate: '2/16/25', arriveTime: '9:35 AM', arriveDate: '2/16/25', coords: [17.4108, 102.7923] },
+        { departing: 'Bangkok', arriving: 'Taipei', flightNo: 'Thai Airways TG634', code: '57AS68', departTime: '12:50 PM', departDate: '2/16/25', arriveTime: '5:20 PM', arriveDate: '2/16/25', coords: [13.7563, 100.5018] },
+        { departing: 'Taipei', arriving: 'Seattle', flightNo: 'Delta DL0068', code: 'JQWREQ', departTime: '10:45 AM', departDate: '2/17/25', arriveTime: '6:05 AM', arriveDate: '2/17/25', coords: [25.033, 121.5654] },
+    ];
+
+    // Populate table
+    const flightTable = document.getElementById('flightTable');
+    flightData.forEach((flight, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${flight.departing}</td>
+            <td>${flight.arriving}</td>
+            <td>${flight.flightNo}</td>
+            <td>${flight.code}</td>
+            <td>${flight.departDate} ${flight.departTime}</td>
+            <td>${flight.arriveDate} ${flight.arriveTime}</td>
+        `;
+        row.addEventListener('click', () => {
+            displayInfo(index);
+            highlightMarker(index);
+        });
+        flightTable.appendChild(row);
+
+        // Add markers to map
+        const marker = L.marker(flight.coords).addTo(map);
+        marker.bindPopup(`${flight.departing} → ${flight.arriving}`).on('click', () => {
+            displayInfo(index);
+            highlightTableRow(index);
+        });
+    });
+
+    // Function to highlight the corresponding marker
+    function highlightMarker(index) {
+        map.eachLayer((layer) => {
+            if (layer instanceof L.Marker) {
+                layer.setOpacity(0.5);
+            }
+        });
+        map.eachLayer((layer) => {
+            if (layer instanceof L.Marker && layer.getLatLng().equals(L.latLng(flightData[index].coords))) {
+                layer.setOpacity(1);
+                layer.openPopup();
+            }
+        });
+    }
+
+    // Function to highlight the corresponding table row
+    function highlightTableRow(index) {
+        const rows = flightTable.getElementsByTagName('tr');
+        for (let i = 0; i < rows.length; i++) {
+            rows[i].classList.remove('selected');
+        }
+        rows[index].classList.add('selected');
+    }
+
+    // Display info function
+    function displayInfo(index) {
+        const flight = flightData[index];
+        const infoDiv = document.getElementById('infoDiv');
+        infoDiv.innerHTML = `
+            <h5>Flight Details</h5>
+            <p><strong>Departing City:</strong> ${flight.departing}</p>
+            <p><strong>Arrival City:</strong> ${flight.arriving}</p>
+            <p><strong>Flight No.:</strong> ${flight.flightNo}</p>
+            <p><strong>Confirmation Code:</strong> ${flight.code}</p>
+            <p><strong>Departing:</strong> ${flight.departDate} ${flight.departTime}</p>
+            <p><strong>Arriving:</strong> ${flight.arriveDate} ${flight.arriveTime}</p>
+        `;
+    }
+    function calculateEstimatedFlightTime(departing, arriving) {
+        const flightTimeEstimates = {
+            'Seattle-Taipei': '13h 24m',
+            'Taipei-Hong Kong': '1h 40m',
+            'Hong Kong-Kuala Lumpur': '3h 15m',
+            'Kuala Lumpur-Phuket': '1h 35m',
+            'Phuket-Bangkok': '1h 30m',
+            'Bangkok-Udon Thani': '1h 10m',
+            'Udon Thani-Bangkok': '1h 10m',
+            'Bangkok-Taipei': '3h 30m',
+            'Taipei-Seattle': '10h 20m'
+        };
+
+        const routeKey = `${departing}-${arriving}`;
+        const reverseRouteKey = `${arriving}-${departing}`;
+
+        return flightTimeEstimates[routeKey] || flightTimeEstimates[reverseRouteKey] || 'Unknown flight time';
+    }
+
+    function displayInfo(index) {
+        const flight = flightData[index];
+        const infoDiv = document.getElementById('infoDiv');
+        const flightTimeDiv = document.getElementById('flightTimeOutput');
+
+        infoDiv.innerHTML = `
+            <h5>Flight Details</h5>
+            <p><strong>Departing City:</strong> ${flight.departing}</p>
+            <p><strong>Arrival City:</strong> ${flight.arriving}</p>
+            <p><strong>Flight:</strong> ${flight.flightNo}</p>
+            <p><strong>Confirmation Code:</strong> ${flight.code}</p>
+            <p><strong>Departing:</strong> ${flight.departDate} ${flight.departTime}</p>
+            <p><strong>Arriving:</strong> ${flight.arriveDate} ${flight.arriveTime}</p>
+        `;
+
+        const estimatedFlightTime = calculateEstimatedFlightTime(flight.departing, flight.arriving);
+        flightTimeDiv.innerHTML = `
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-airplane" viewBox="0 0 16 16" transform="rotate(90)">
+                    <path d="M6.428 1.151C6.708.591 7.213 0 8 0s1.292.592 1.572 1.151C9.861 1.73 10 2.431 10 3v3.691l5.17 2.585a1.5 1.5 0 0 1 .83 1.342V12a.5.5 0 0 1-.582.493l-5.507-.918-.375 2.253 1.318 1.318A.5.5 0 0 1 10.5 16h-5a.5.5 0 0 1-.354-.854l1.319-1.318-.376-2.253-5.507.918A.5.5 0 0 1 0 12v-1.382a1.5 1.5 0 0 1 .83-1.342L6 6.691V3c0-.568.14-1.271.428-1.849m.894.448C7.111 2.02 7 2.569 7 3v4a.5.5 0 0 1-.276.447l-5.448 2.724a.5.5 0 0 0-.276.447v.792l5.418-.903a.5.5 0 0 1 .575.41l.5 3a.5.5 0 0 1-.14.437L6.708 15h2.586l-.647-.646a.5.5 0 0 1-.14-.436l.5-3a.5.5 0 0 1 .576-.411L15 11.41v-.792a.5.5 0 0 0-.276-.447L9.276 7.447A.5.5 0 0 1 9 7V3c0-.432-.11-.979-.322-1.401C8.458 1.159 8.213 1 8 1s-.458.158-.678.599"/>
+                </svg>
+                <strong>Estimated Flight Time:</strong> ${estimatedFlightTime}
+            </div>
+        `;
+    }
+
+
+</script>
+
+</body>
+</html>
